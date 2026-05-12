@@ -1,16 +1,62 @@
-# React + Vite
+# AXIPAYS Payment System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A complete payment checkout system with transaction dashboard, card validation, and analytics.
 
-Currently, two official plugins are available:
+## Project Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```
+src/
+  pages/          CheckoutPage, DashboardPage, PaymentRedirectPage
+  components/     CheckoutForm, OrderSummary, Header, Footer, Layout
+  hooks/          usePaymentForm, usePayment
+  services/       paymentApi
+  utils/          formatter, hash, luhn, mask, validation
+  app/            routes
+```
 
-## React Compiler
+## How It Works
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Checkout Flow**
+User fills card details → Form validates (Luhn check, expiry, CVV) → API called with HMAC-SHA256 hash → Redirect to payment gateway → Return to app → Show success/failed modal
 
-## Expanding the ESLint configuration
+**Dashboard**
+Fetches all transactions → Shows summary cards → Displays charts (status breakdown, weekly volume, currency distribution) → Searchable transaction table with pagination
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Key Features
+
+- Luhn algorithm card validation
+- Card masking (first 6 and last 4 only)
+- HMAC-SHA256 hash authentication
+- Real-time form validation
+- Responsive charts using SVG
+- Transaction history with search and filter
+
+## Test Cards
+
+- Success: 4000000000000002
+- Pending: 4000000000000000
+- Failed: 4000000000000001
+
+Use expiry 12/2028 and CVV 123
+
+## Tech Stack
+
+React, Tailwind CSS, Daisy UI, Lucide Icons, React Router DOM
+
+## Live Demo
+
+https://axi-pays-nu.vercel.app
+
+## Run Locally
+
+```
+npm install
+npm run dev
+```
+
+## Security
+
+- No raw card numbers logged or displayed
+- CVV always masked
+- HMAC-SHA256 for API authentication
+- Luhn validation before submission
