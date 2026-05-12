@@ -1,54 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 
 const PaymentRedirectPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkPaymentStatus = async () => {
-      try {
-        // First check if status is in URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const statusParam = urlParams.get("status");
-        
-        if (statusParam) {
-          setStatus(statusParam);
-          setMessage(statusParam === "success" ? "Payment completed successfully" : "Payment " + statusParam);
-          setLoading(false);
-          return;
-        }
-        
-        // If no status in URL, fetch from the redirect endpoint
-        // This is the key fix - fetch the status from the API endpoint
-        const response = await fetch("https://payment-assignment.onrender.com/redirect");
-        const data = await response.json();
-        
-        console.log("Payment status from API:", data);
-        setStatus(data.status);
-        setMessage(data.message);
-        setLoading(false);
-        
-        // Store payment result
-        sessionStorage.setItem("paymentResult", JSON.stringify({
-          status: data.status,
-          message: data.message,
-          timestamp: new Date().toISOString()
-        }));
-        
-      } catch (error) {
-        console.error("Error checking payment status:", error);
-        setStatus("error");
-        setMessage("Unable to verify payment status");
-        setLoading(false);
-      }
-    };
+    const urlParams = new URLSearchParams(location.search);
+    const statusParam = urlParams.get("status");
     
-    checkPaymentStatus();
-  }, []);
+    if (statusParam) {
+      setStatus(statusParam);
+      setMessage(statusParam === "success" ? "Payment completed successfully" : "Payment " + statusParam);
+      setLoading(false);
+    } else {
+      fetch("https://payment-assignment.onrender.com/redirect")
+        .then(res => res.json())
+        .then(data => {
+          setStatus(data.status);
+          setMessage(data.message);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Error:", err);
+          setStatus("error");
+          setMessage("Unable to verify payment status");
+          setLoading(false);
+        });
+    }
+  }, [location]);
 
   const getConfig = () => {
     switch(status) {
@@ -76,13 +60,13 @@ const PaymentRedirectPage = () => {
           title: "Payment Pending",
           bgColor: "bg-amber-50",
           borderColor: "border-amber-200",
-          buttonText: "Go to Dashboard",
+          buttonText: "Check Dashboard",
           onClick: () => navigate("/dashboard")
         };
       default:
         return {
           icon: <XCircle size={48} className="text-stone-400" />,
-          title: "Unable to Process",
+          title: "Payment Status Unknown",
           bgColor: "bg-stone-50",
           borderColor: "border-stone-200",
           buttonText: "Return to Checkout",

@@ -1,10 +1,70 @@
-// src/services/paymentApi.js
+import { generatePaymentHash } from "../utils/hash";
+import { maskCardNumber } from "../utils/mask";
+
+const API_BASE_URL = "https://payment-assignment.onrender.com";
+
+const generateOrderId = () => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 10).toUpperCase();
+  return `ORD_${timestamp}_${random}`;
+};
+
+const formatExpiryYear = (year) => {
+  if (!year) return "";
+  const cleanYear = year.replace(/\D/g, "");
+  if (cleanYear.length === 2) {
+    return `20${cleanYear}`;
+  }
+  return cleanYear.slice(0, 4);
+};
+
+const sanitizePhoneNumber = (phone) => {
+  if (!phone) return "";
+  return phone.replace(/\D/g, "");
+};
+
+const buildPaymentRequest = (paymentData, orderId) => {
+  return {
+    orderId: orderId,
+    cardHolderName: paymentData.cardHolder,
+    email: paymentData.email,
+    cardNumber: paymentData.cardNumber.replace(/\s/g, ""),
+    expiryMonth: paymentData.expiryMonth,
+    expiryYear: formatExpiryYear(paymentData.expiryYear),
+    cardCVC: paymentData.cvv,
+    amount: parseFloat(paymentData.amount),
+    currency: paymentData.currency,
+    country: paymentData.country,
+    address: paymentData.address,
+    phone: sanitizePhoneNumber(paymentData.phone)
+  };
+};
+
+const logRequestDetails = (requestBody, hash) => {
+  console.log("Payment Request:", {
+    orderId: requestBody.orderId,
+    cardNumber: maskCardNumber(requestBody.cardNumber),
+    amount: requestBody.amount,
+    currency: requestBody.currency,
+    hashHeader: hash ? hash.substring(0, 16) + "..." : "missing"
+  });
+};
 
 export const initiatePayment = async (paymentData) => {
+  if (!paymentData.phone || paymentData.phone.trim() === "") {
+    return { success: false, error: "Phone number is required" };
+  }
+
   try {
-    // ... existing code ...
+    const securityHash = await generatePaymentHash(paymentData.cardNumber, paymentData.email);
+    const orderId = generateOrderId();
+    const requestPayload = buildPaymentRequest(paymentData, orderId);
     
-    const response = await fetch(`${API_BASE_URL}/initiate-payment`, {
+    logRequestDetails(requestPayload, securityHash);
+    
+    console.log("Sending request to:", `${API_BASE_URL}/initiate-payment`);
+    
+    const apiResponse = await fetch(`${API_BASE_URL}/initiate-payment`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -13,36 +73,67 @@ export const initiatePayment = async (paymentData) => {
       body: JSON.stringify(requestPayload)
     });
     
-    const data = await response.json();
+    const responseData = await apiResponse.json();
+    console.log("API Response:", responseData);
     
-    if (!response.ok) {
-      throw new Error(data.message || "Payment initiation failed");
+    if (!apiResponse.ok) {
+      return {
+        success: false,
+        error: responseData.message || responseData.error || "Payment initiation failed"
+      };
     }
     
-    let redirectUrl = data.redirect_url || data.redirection_url;
+    const redirectUrl = responseData.redirect_url || responseData.redirection_url;
     
     if (redirectUrl) {
-      // CRITICAL: Use YOUR deployed Vercel app URL
-      const yourAppUrl = "https://axi-pays-nu.vercel.app";
+      const yourAppUrl = window.location.origin;
       const returnUrl = `${yourAppUrl}/payment-status`;
       
-      // Append return_url to the redirect URL
       const separator = redirectUrl.includes('?') ? '&' : '?';
-      redirectUrl = `${redirectUrl}${separator}return_url=${encodeURIComponent(returnUrl)}`;
+      const finalRedirectUrl = `${redirectUrl}${separator}return_url=${encodeURIComponent(returnUrl)}`;
       
-      console.log("Redirect URL with return param:", redirectUrl);
-      console.log("Will redirect back to:", returnUrl);
+      console.log("Redirect URL:", finalRedirectUrl);
       
       sessionStorage.setItem("currentTransactionId", orderId);
       sessionStorage.setItem("transactionAmount", paymentData.amount);
+      sessionStorage.setItem("transactionCurrency", paymentData.currency);
       
-      return { success: true, redirectUrl: redirectUrl };
+      return { success: true, redirectUrl: finalRedirectUrl };
     } else {
-      throw new Error("No redirect URL received");
+      return { success: false, error: "No redirect URL received" };
     }
     
   } catch (error) {
     console.error("Payment API Error:", error.message);
+    return { success: false, error: error.message || "An unexpected error occurred" };
+  }
+};
+
+export const getTransactionStatus = async (transactionId = null) => {
+  try {
+    const storedId = transactionId || sessionStorage.getItem("currentTransactionId");
+    
+    if (!storedId) {
+      return { success: false, error: "No transaction reference found" };
+    }
+    
+    const statusUrl = `${API_BASE_URL}/transaction/${storedId}/status`;
+    
+    const response = await fetch(statusUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to retrieve transaction status");
+    }
+    
+    return { success: true, status: data.status, message: data.message };
+    
+  } catch (error) {
+    console.error("Status check error:", error.message);
     return { success: false, error: error.message };
   }
 };
