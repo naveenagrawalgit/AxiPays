@@ -1,3 +1,4 @@
+// src/app/routes.jsx
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "../components/layout/Layout";
@@ -14,7 +15,7 @@ const AppRoutes = () => {
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
         </Route>
-        <Route path="/redirect" element={<PaymentRedirectPage />} />
+        
         <Route path="/payment-status" element={<PaymentRedirectPage />} />
       </Routes>
     </BrowserRouter>
