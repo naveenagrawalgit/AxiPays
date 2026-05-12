@@ -1,3 +1,5 @@
+AI generated. No need to review if you didn't wanted something like that. It is not humanly possible to write this much amount of code. at least for me as a human.
+
 # AXIPAYS Payment System
 
 A complete payment checkout system with transaction dashboard, card validation, and analytics.
